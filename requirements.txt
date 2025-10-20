@@ -1,5 +1,5 @@
-"gymnasium[mujoco]"
 gym 
+gymnasium[mujoco]
 torch 
 moviepy 
 pygame
