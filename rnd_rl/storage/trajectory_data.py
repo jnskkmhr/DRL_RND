@@ -5,7 +5,7 @@ class TrajData:
         s, e, o, a = n_steps, n_envs, n_obs, n_actions
 
         self.states = torch.zeros((s, e, o))
-        self.actions = torch.zeros((s, e))
+        self.actions = torch.zeros((s, e, a))
         self.rewards = torch.zeros((s, e))
         self.not_dones = torch.zeros((s, e))
 

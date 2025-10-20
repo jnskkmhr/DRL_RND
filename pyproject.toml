@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rnd_rl"
+version = "0.1.0"
+description = "RL with RND."
+authors = [
+    { name = "Junnosuke Kamohara", email = "jkamohara3@gatech.edu" }
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "gym",
+    "gymnasium[mujoco]",
+    "torch",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rnd_rl*"]

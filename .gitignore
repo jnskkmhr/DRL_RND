@@ -1,2 +1,6 @@
 # no venv
 drl_env
+rnd_rl.egg-info
+runs
+videos
+*.pyc

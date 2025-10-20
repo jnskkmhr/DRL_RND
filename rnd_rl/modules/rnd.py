@@ -20,7 +20,7 @@ class RandomNetworkDistillation(nn.Module):
             target_layers.append(nn.Linear(dims[i], dims[i + 1]))
             if i < len(dims) - 2:
                 target_layers.append(nn.ReLU())
-        self.targe = nn.Sequential(*target_layers).to(self.device)
+        self.target = nn.Sequential(*target_layers).to(self.device)
         
         # Build the predictor network (trainable)
         predictor_layers = []

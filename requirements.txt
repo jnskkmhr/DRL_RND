@@ -1,0 +1,5 @@
+"gymnasium[mujoco]"
+gym 
+torch 
+moviepy 
+pygame

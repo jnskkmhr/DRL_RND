@@ -3,22 +3,39 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 from rnd_rl.storage.trajectory_data import TrajData
-from rnd_rl.algorithm.ppo import PPOAgent
+from rnd_rl.algorithm.ppo import PPOAgent, PPOConfig
 
 
 class PolicyRunner:
-    def __init__(self):
+    def __init__(
+        self, 
+        envs: gym.vector.SyncVectorEnv,
+        policy_cfg: PPOConfig,
+        n_envs: int = 64,
+        num_mini_epochs:int=10,
+        num_steps_per_env: int = 256,
+        device: torch.device = torch.device("cpu"),
+        ):
 
-        self.n_envs = 64
-        self.n_steps = 256
-        self.n_obs = 4
+        self.n_envs = n_envs # parallel envs 
+        self.n_steps = num_steps_per_env # horizon length
+        self.n_obs = envs.observation_space.shape[1]
+        self.n_actions = envs.action_space.shape[1]
+        self.num_mini_epochs = num_mini_epochs
 
-        self.envs = gym.vector.SyncVectorEnv([lambda: gym.make("CartPole-v1") for _ in range(self.n_envs)])
+        # self.envs = gym.vector.SyncVectorEnv([lambda: gym.make("CartPole-v1") for _ in range(self.n_envs)])
+        self.envs = envs
+        self.traj_data = TrajData(self.n_steps, self.n_envs, self.n_obs, n_actions=self.n_actions) 
+        
+        self.policy_cfg = policy_cfg
+        self.alg = PPOAgent(
+            policy_cfg=policy_cfg,
+            obs_dim=self.n_obs,
+            action_dim=self.n_actions,
+            device=device,
+        )
 
-        self.traj_data = TrajData(self.n_steps, self.n_envs, self.n_obs, n_actions=1) # 1 action choice is made
-        self.agent = Agent(self.n_obs, n_actions=2)  # 2 action choices are available
-        self.optimizer = Adam(self.agent.parameters(), lr=1e-3)
-        self.writer = SummaryWriter(log_dir=f'runs/{self.agent.name}')
+        self.writer = SummaryWriter(log_dir=f'runs/{self.alg.name}')
 
 
     def rollout(self, i):
@@ -28,15 +45,21 @@ class PolicyRunner:
 
         for t in range(self.n_steps):
             # PPO doesnt use gradients here, but REINFORCE and VPG do.
-            with torch.no_grad() if self.agent.name == 'PPO' else torch.enable_grad():
-                actions, probs = self.agent.get_action(obs)
-            log_probs = probs.log_prob(actions)
+            with torch.no_grad():
+                actions, probs = self.alg.get_action(obs)
+            log_probs = probs.log_prob(actions).sum(dim=-1)
             next_obs, rewards, done, truncated, infos = self.envs.step(actions.numpy())
             done = done | truncated  # episode doesnt truncate till t = 500, so never
             self.traj_data.store(t, obs, actions, rewards, log_probs, done)
             obs = torch.Tensor(next_obs)
+            
+            if self.policy_cfg.use_rnd:
+                intrinsic_rewards = self.alg.rnd.get_intrinsic_reward(obs)
+                self.traj_data.rewards[t] += intrinsic_rewards
 
-        self.traj_data.calc_returns()
+        last_value = self.alg.policy.evaluate(obs).detach()
+        values = self.alg.policy.evaluate(self.traj_data.states).detach().squeeze()
+        self.traj_data.calc_returns(values, last_value=last_value)
 
         self.writer.add_scalar("Reward", self.traj_data.rewards.mean(), i)
         self.writer.flush()
@@ -46,14 +69,22 @@ class PolicyRunner:
 
         # A primary benefit of PPO is that it can train for
         # many epochs on 1 rollout without going unstable
-        epochs = 10 if self.agent.name == 'PPO' else 1
+        for _ in range(self.num_mini_epochs):
 
-        for _ in range(epochs):
+            policy_loss = self.alg.get_policy_loss(self.traj_data)
+            if self.alg.rnd:
+                rnd_loss = self.alg.get_rnd_loss(self.traj_data)
 
-            loss = self.agent.get_loss(self.traj_data)
-
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+            # compute gradients
+            self.alg.optimizer.zero_grad()
+            policy_loss.backward()
+            if self.alg.rnd:
+                self.alg.rnd_optimizer.zero_grad()
+                rnd_loss.backward()
+            
+            # apply gradients
+            self.alg.optimizer.step()
+            if self.alg.rnd_optimizer:
+                self.alg.rnd_optimizer.step()
 
         self.traj_data.detach()
