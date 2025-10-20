@@ -46,18 +46,18 @@ class PolicyRunner:
         for t in range(self.n_steps):
             # PPO doesnt use gradients here, but REINFORCE and VPG do.
             with torch.no_grad():
-                actions, probs = self.alg.get_action(obs)
+                actions, probs = self.alg.get_action(obs.to(self.alg.device))
             log_probs = probs.log_prob(actions).sum(dim=-1)
-            next_obs, rewards, done, truncated, infos = self.envs.step(actions.numpy())
+            next_obs, rewards, done, truncated, infos = self.envs.step(actions.to('cpu').numpy())
             done = done | truncated  # episode doesnt truncate till t = 500, so never
             self.traj_data.store(t, obs, actions, rewards, log_probs, done)
             obs = torch.Tensor(next_obs)
             
             if self.policy_cfg.use_rnd:
-                intrinsic_rewards = self.alg.rnd.get_intrinsic_reward(obs)
+                intrinsic_rewards = self.alg.rnd.get_intrinsic_reward(obs.to(self.alg.device)).to(self.alg.device)
                 self.traj_data.rewards[t] += intrinsic_rewards
 
-        last_value = self.alg.policy.evaluate(obs).detach()
+        last_value = self.alg.policy.evaluate(obs.to(self.alg.device)).detach()
         values = self.alg.policy.evaluate(self.traj_data.states).detach().squeeze()
         self.traj_data.calc_returns(values, last_value=last_value)
 
