@@ -87,6 +87,7 @@ class PPOAgent(nn.Module):
         return rnd_loss
     
     def get_action(self, obs):
+        # print("obs device ", obs.device,"self device ", self.device)
         actions = self.policy.act(obs)
         dist = self.policy.distribution
         return actions, dist
