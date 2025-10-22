@@ -26,7 +26,6 @@ class PolicyRunner:
         # self.envs = gym.vector.SyncVectorEnv([lambda: gym.make("CartPole-v1") for _ in range(self.n_envs)])
         self.envs = envs
         self.traj_data = TrajData(self.n_steps, self.n_envs, self.n_obs, n_actions=self.n_actions) 
-        
         self.policy_cfg = policy_cfg
         self.alg = PPOAgent(
             policy_cfg=policy_cfg,
@@ -67,6 +66,7 @@ class PolicyRunner:
         self.traj_data.calc_returns(values, last_value=last_value)
 
         self.writer.add_scalar("Reward", self.traj_data.rewards.mean(), i)
+        self.writer.add_scalar("Extrinsic Reward", self.traj_data.extrinsic_rewards.mean(), i)
         self.writer.flush()
 
 
