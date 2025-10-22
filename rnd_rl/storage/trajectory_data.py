@@ -7,6 +7,7 @@ class TrajData:
         self.states = torch.zeros((s, e, o))
         self.actions = torch.zeros((s, e, a))
         self.rewards = torch.zeros((s, e))
+        self.extrinsic_rewards = torch.zeros((s, e))
         self.not_dones = torch.zeros((s, e))
 
         self.log_probs = torch.zeros((s, e))
@@ -23,7 +24,7 @@ class TrajData:
         self.states[t] = s
         self.actions[t] = a
         self.rewards[t] = torch.Tensor(r)
-
+        self.extrinsic_rewards[t] = torch.Tensor(r)
         self.log_probs[t] = lp
         self.not_dones[t] = 1 - torch.Tensor(d)
 
