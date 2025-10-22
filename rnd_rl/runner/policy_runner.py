@@ -53,7 +53,12 @@ class PolicyRunner:
             self.traj_data.store(t, obs, actions, rewards, log_probs, done)
             obs = torch.Tensor(next_obs)
             
+            # update observation and rnd normalizers value here, and also normalize obs and reward
+            # like in process_env_step in on_policy_runner.py
+            self.alg.policy.update_normalization(obs.to(self.alg.device))
+            # obs normalizer applied to actor in act, and to critic when evaluate (computing returns)
             if self.policy_cfg.use_rnd:
+                self.alg.rnd.update_normalization(obs.to(self.alg.device))
                 intrinsic_rewards = self.alg.rnd.get_intrinsic_reward(obs.to(self.alg.device)).to(self.alg.device)
                 self.traj_data.rewards[t] += intrinsic_rewards
 
