@@ -21,6 +21,12 @@ class PPOConfig:
     gae_lambda:float=0.95
     obs_normalization: bool = False # for now RND and ActorCritic both normalize obs or not
     reward_normalization: bool = False
+    # RND improvements
+    rnd_activation: str = "relu"  # "relu", "leaky_relu", "elu", "swish"
+    rnd_use_batch_norm: bool = False
+    rnd_use_layer_norm: bool = False
+    rnd_dropout_rate: float = 0.0
+    rnd_gradient_clip: float = 1.0
 
 class PPOAgent(nn.Module):
     def __init__(
@@ -57,7 +63,11 @@ class PPOAgent(nn.Module):
                 hidden_dims=policy_cfg.rnd_hidden_dims,
                 device=device,
                 obs_normalization = policy_cfg.obs_normalization,
-                reward_normalization = policy_cfg.reward_normalization
+                reward_normalization = policy_cfg.reward_normalization,
+                activation = policy_cfg.rnd_activation,
+                use_batch_norm = policy_cfg.rnd_use_batch_norm,
+                use_layer_norm = policy_cfg.rnd_use_layer_norm,
+                dropout_rate = policy_cfg.rnd_dropout_rate,
             ).to(self.device)
             self.rnd_optimizer = torch.optim.Adam(self.rnd.predictor.parameters(), lr=policy_cfg.rnd_lr)
         else:

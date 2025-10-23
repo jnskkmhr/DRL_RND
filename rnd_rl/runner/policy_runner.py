@@ -87,9 +87,11 @@ class PolicyRunner:
                 self.alg.rnd_optimizer.zero_grad()
                 rnd_loss.backward()
             
-            # apply gradients
+            # apply gradients with clipping
+            torch.nn.utils.clip_grad_norm_(self.alg.policy.parameters(), self.policy_cfg.rnd_gradient_clip)
             self.alg.optimizer.step()
             if self.alg.rnd_optimizer:
+                torch.nn.utils.clip_grad_norm_(self.alg.rnd.predictor.parameters(), self.policy_cfg.rnd_gradient_clip)
                 self.alg.rnd_optimizer.step()
 
         self.traj_data.detach()

@@ -1,6 +1,12 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from rnd_rl.modules.normalizer import ObsNormalizer, RewardNormalizer
+
+class Swish(nn.Module):
+    """Swish activation function: x * sigmoid(x)"""
+    def forward(self, x):
+        return x * torch.sigmoid(x)
 
 class RandomNetworkDistillation(nn.Module):
     def __init__(
@@ -11,10 +17,30 @@ class RandomNetworkDistillation(nn.Module):
         device: torch.device = torch.device("cpu"),
         obs_normalization: bool = False,
         reward_normalization: bool = False,
+        activation: str = "relu",  # "relu", "leaky_relu", "elu", "swish"
+        use_batch_norm: bool = False,
+        use_layer_norm: bool = False,
+        dropout_rate: float = 0.0,
     ):
         super(RandomNetworkDistillation, self).__init__()
         
         self.device = device
+        self.activation = activation
+        self.use_batch_norm = use_batch_norm
+        self.use_layer_norm = use_layer_norm
+        self.dropout_rate = dropout_rate
+        
+        # Define activation function
+        if activation == "relu":
+            self.activation_fn = nn.ReLU()
+        elif activation == "leaky_relu":
+            self.activation_fn = nn.LeakyReLU(negative_slope=0.01)
+        elif activation == "elu":
+            self.activation_fn = nn.ELU()
+        elif activation == "swish":
+            self.activation_fn = Swish()
+        else:
+            raise ValueError(f"Unknown activation function: {activation}")
         
         # Build the target network (fixed)
         target_layers = []
@@ -22,7 +48,11 @@ class RandomNetworkDistillation(nn.Module):
         for i in range(len(dims) - 1):
             target_layers.append(nn.Linear(dims[i], dims[i + 1]))
             if i < len(dims) - 2:
-                target_layers.append(nn.ReLU())
+                if use_batch_norm:
+                    target_layers.append(nn.BatchNorm1d(dims[i + 1]))
+                elif use_layer_norm:
+                    target_layers.append(nn.LayerNorm(dims[i + 1]))
+                target_layers.append(self.activation_fn)
         self.target = nn.Sequential(*target_layers).to(self.device)
         
         # Build the predictor network (trainable)
@@ -30,7 +60,13 @@ class RandomNetworkDistillation(nn.Module):
         for i in range(len(dims) - 1):
             predictor_layers.append(nn.Linear(dims[i], dims[i + 1]))
             if i < len(dims) - 2:
-                predictor_layers.append(nn.ReLU())
+                if use_batch_norm:
+                    predictor_layers.append(nn.BatchNorm1d(dims[i + 1]))
+                elif use_layer_norm:
+                    predictor_layers.append(nn.LayerNorm(dims[i + 1]))
+                predictor_layers.append(self.activation_fn)
+                if dropout_rate > 0:
+                    predictor_layers.append(nn.Dropout(dropout_rate))
         self.predictor = nn.Sequential(*predictor_layers).to(self.device)
         
         # make target network not trainable
