@@ -15,6 +15,7 @@ If you are running on your local machine:
 uv venv drl_env --python 3.11
 source drl_env/bin/activate
 uv pip install -r requirements.txt
+uv pip install -e .
 ```
 
 ## Training and inference
