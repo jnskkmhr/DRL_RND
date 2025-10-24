@@ -9,10 +9,3 @@ torch
 wandb
 matplotlib
 pandas
-# ##########
-# # edit the following two lines according to your cuda version.
-# # see: https://pytorch.org/get-started/locally/ 
-# # and https://pytorch.org/get-started/previous-versions/
-# --extra-index-url https://download.pytorch.org/whl/cu126
-# torch == 2.9.0
-# ##########
