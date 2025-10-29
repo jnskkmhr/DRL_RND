@@ -1,6 +1,6 @@
 # Random Network Distillation 
 
-This repository provides implementation of proximal policy optimization (PPO) and random network distillation (RND) for CS8803 Deep Reinforcement Learning course. It is based on https://github.com/leggedrobotics/rsl_rl by the same authors of the original RND paper.
+This repository provides implementation of proximal policy optimization (PPO) and random network distillation (RND) for CS8803 Deep Reinforcement Learning course. It is based on [1] [(repository link)](https://github.com/leggedrobotics/rsl_rl) by the same authors of the original RND paper.
 
 ## Before start
 
@@ -43,3 +43,8 @@ Go to `train_colab.ipynb` if you are running on colab.
 
 ## Plot results
 Go to `plot.ipynb`
+
+
+[1] Clemens Schwarke, Mayank Mittal, Nikita Rudin, David Hoeller, and Marco
+Hutter. Rsl-rl: A learning library for robotics research. arXiv preprint
+arXiv:2509.10771, 2025
