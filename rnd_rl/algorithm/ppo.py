@@ -4,6 +4,8 @@ import torch.nn as nn
 from rnd_rl.storage.trajectory_data import TrajData
 from rnd_rl.modules.actor_critic import ActorCritic
 from rnd_rl.modules.rnd import RandomNetworkDistillation
+from cvxpylayers.torch import CvxpyLayer
+import cvxpy as cp
 
 @dataclass
 class PPOConfig:
@@ -21,7 +23,7 @@ class PPOConfig:
     gae_lambda:float=0.95
     obs_normalization: bool = False # for now RND and ActorCritic both normalize obs or not
     reward_normalization: bool = False
-
+    safety_layer_enabled: bool = True
 class PPOAgent(nn.Module):
     def __init__(
         self,
@@ -29,6 +31,7 @@ class PPOAgent(nn.Module):
         obs_dim: int,
         action_dim: int,
         device: torch.device = torch.device("cpu"),
+        safety_layer_enabled: bool = False,
     ):
         super(PPOAgent, self).__init__()
 
@@ -47,7 +50,7 @@ class PPOAgent(nn.Module):
             device=device,
             obs_normalization = policy_cfg.obs_normalization,
         ).to(self.device)
-
+        self.safety_layer_enabled = safety_layer_enabled
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=policy_cfg.lr)
 
         if policy_cfg.use_rnd:
@@ -68,6 +71,37 @@ class PPOAgent(nn.Module):
             self.name = "PPO_RND"
         else:
             self.name = "PPO"
+
+        
+    def dpp_projection(self, a_raw, state, c_funcs, 
+                   steps=10, eta=0.1, lambda_penalty=10.0):
+        """
+        a_raw: raw PPO action (requires_grad=True)
+        c_funcs: list of constraint functions c_i(s, a)
+        """
+
+        x = a_raw.clone().requires_grad_(True)
+
+        for _ in range(steps):
+            penalty = 0.0
+
+            for c_fn in c_funcs:
+                c_val = c_fn(state, x)
+                # soft penalty: smooth, differentiable
+                penalty += torch.sum(torch.relu(c_val)**2)
+            
+            loss = (x - a_raw).pow(2).sum() + lambda_penalty * penalty
+
+            # compute gradient
+            grad = torch.autograd.grad(
+                loss, x, create_graph=True
+            )[0]
+
+            # gradient descent update
+            x = (x - eta * grad).detach().requires_grad_(True)
+
+        return x
+
         
     def get_policy_loss(self, traj_data:TrajData)->torch.Tensor:
         predicted_values = self.policy.evaluate(traj_data.states).squeeze(-1)
@@ -95,4 +129,16 @@ class PPOAgent(nn.Module):
         # print("obs device ", obs.device,"self device ", self.device)
         actions = self.policy.act(obs)
         dist = self.policy.distribution
+        if self.safety_layer_enabled:
+            # Define constraint functions
+            def c1(s, a):
+                return s - 1.0  # a <= 1.0
+
+            def c2(s, a):
+                return -s - 1.0  # a >= -1.0
+
+            c_funcs = [c1, c2]
+            # Project action using DPP
+            actions = self.dpp_projection(actions, obs, c_funcs)
+            
         return actions, dist

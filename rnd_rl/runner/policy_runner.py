@@ -32,6 +32,7 @@ class PolicyRunner:
             obs_dim=self.n_obs,
             action_dim=self.n_actions,
             device=device,
+            safety_layer_enabled=policy_cfg.safety_layer_enabled,
         )
 
         self.writer = SummaryWriter(log_dir=f'runs/{self.alg.name}')
@@ -44,9 +45,13 @@ class PolicyRunner:
 
         for t in range(self.n_steps):
             # PPO doesnt use gradients here, but REINFORCE and VPG do.
-            with torch.no_grad():
+            if self.policy_cfg.safety_layer_enabled:
                 actions, probs = self.alg.get_action(obs.to(self.alg.device))
+            else:
+                with torch.no_grad():
+                    actions, probs = self.alg.get_action(obs.to(self.alg.device))
             log_probs = probs.log_prob(actions).sum(dim=-1)
+            actions = actions.detach()
             next_obs, rewards, done, truncated, infos = self.envs.step(actions.to('cpu').numpy())
             done = done | truncated  # episode doesnt truncate till t = 500, so never
             self.traj_data.store(t, obs, actions, rewards, log_probs, done)
