@@ -29,6 +29,7 @@ class PPOAgent(nn.Module):
         obs_dim: int,
         action_dim: int,
         device: torch.device = torch.device("cpu"),
+        experiment_name: str = "PPO",
     ):
         super(PPOAgent, self).__init__()
 
@@ -64,10 +65,7 @@ class PPOAgent(nn.Module):
             self.rnd = None
             self.rnd_optimizer = None
             
-        if policy_cfg.use_rnd:
-            self.name = "PPO_RND"
-        else:
-            self.name = "PPO"
+        self.name = experiment_name
         
     def get_policy_loss(self, traj_data:TrajData)->torch.Tensor:
         predicted_values = self.policy.evaluate(traj_data.states).squeeze(-1)
