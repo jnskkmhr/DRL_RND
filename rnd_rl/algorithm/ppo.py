@@ -100,7 +100,6 @@ class PPOAgent(nn.Module):
 
             # gradient descent update
             x = (x - eta * grad).detach().requires_grad_(True)
-
         return x
 
     
