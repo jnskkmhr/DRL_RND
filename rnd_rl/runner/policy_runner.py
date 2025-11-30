@@ -1,6 +1,7 @@
 import gymnasium as gym
 import torch 
-from torch.utils.tensorboard import SummaryWriter
+import wandb
+# from torch.utils.tensorboard import SummaryWriter
 
 from rnd_rl.storage.trajectory_data import TrajData
 from rnd_rl.algorithm.ppo import PPOAgent, PPOConfig
@@ -15,6 +16,7 @@ class PolicyRunner:
         num_mini_epochs:int=10,
         num_steps_per_env: int = 256,
         device: torch.device = torch.device("cpu"),
+        experiment_name: str = "PPO",
         ):
 
         self.n_envs = n_envs # parallel envs 
@@ -33,9 +35,11 @@ class PolicyRunner:
             action_dim=self.n_actions,
             device=device,
             safety_layer_enabled=policy_cfg.safety_layer_enabled,
+            experiment_name=experiment_name,
         )
 
-        self.writer = SummaryWriter(log_dir=f'runs/{self.alg.name}')
+        # self.writer = SummaryWriter(log_dir=f'runs/{self.alg.name}')
+        wandb.init(project="rnd_rl", name=self.alg.name)
 
 
     def rollout(self, i):
@@ -70,9 +74,11 @@ class PolicyRunner:
         values = self.alg.policy.evaluate(self.traj_data.states).detach().squeeze()
         self.traj_data.calc_returns(values, last_value=last_value)
 
-        self.writer.add_scalar("Reward", self.traj_data.rewards.mean(), i)
-        self.writer.add_scalar("Extrinsic Reward", self.traj_data.extrinsic_rewards.mean(), i)
-        self.writer.flush()
+        # self.writer.add_scalar("Reward", self.traj_data.rewards.mean(), i)
+        # self.writer.add_scalar("Extrinsic Reward", self.traj_data.extrinsic_rewards.mean(), i)
+        # self.writer.flush()
+        
+        wandb.log({"Reward": self.traj_data.rewards.mean(), "Extrinsic Reward": self.traj_data.extrinsic_rewards.mean()}, step=i)
 
 
     def update(self):

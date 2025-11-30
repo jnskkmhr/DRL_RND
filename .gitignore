@@ -4,3 +4,5 @@ rnd_rl.egg-info
 runs
 videos
 *.pyc
+*.pdf
+wandb

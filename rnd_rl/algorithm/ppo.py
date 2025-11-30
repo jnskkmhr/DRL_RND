@@ -32,6 +32,7 @@ class PPOAgent(nn.Module):
         action_dim: int,
         device: torch.device = torch.device("cpu"),
         safety_layer_enabled: bool = False,
+        experiment_name: str = "PPO",
     ):
         super(PPOAgent, self).__init__()
 
@@ -71,7 +72,7 @@ class PPOAgent(nn.Module):
             self.name = "PPO_RND"
         else:
             self.name = "PPO"
-
+        self.name = experiment_name
         
     def dpp_projection(self, a_raw, state, c_funcs, 
                    steps=10, eta=0.1, lambda_penalty=10.0):
@@ -102,6 +103,7 @@ class PPOAgent(nn.Module):
 
         return x
 
+    
         
     def get_policy_loss(self, traj_data:TrajData)->torch.Tensor:
         predicted_values = self.policy.evaluate(traj_data.states).squeeze(-1)

@@ -1,5 +1,11 @@
 gym 
 gymnasium[mujoco]
-torch 
 moviepy 
 pygame
+notebook
+jupyter
+tensorboard
+torch
+wandb
+matplotlib
+pandas
