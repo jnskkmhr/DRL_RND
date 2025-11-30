@@ -1,17 +1,6 @@
 # Random Network Distillation 
 
-<<<<<<< HEAD
-Code under development. The code is based on provided assignments and https://github.com/leggedrobotics/rsl_rl
-
-## Before start
-If you are running on colab: 
-* No installation is needed. You can either download the train_colab.ipynb file and open it in colab, or go to colab-> Open notebook -> GitHub and then paste the URL of this repository. Note that we cannot control the exact environment of colab and most of the testing are done on the local machine.
-
-If you are running on your local machine: 
-* Install uv (a package manager) if you do not have it.
-* Head to requirements.txt and change the torch version according to your cuda installation, then run the installation commands below. Note that the virtual environment can occupy more than 5 GB of disk space.
-=======
-This repository provides implementation of proximal policy optimization (PPO) and random network distillation (RND) for CS8803 Deep Reinforcement Learning course. 
+This repository provides implementation of proximal policy optimization (PPO) and random network distillation (RND) for CS8803 Deep Reinforcement Learning course. It is based on [1] [(repository link)](https://github.com/leggedrobotics/rsl_rl) by the same authors of the original RND paper.
 
 ## Before start
 
@@ -29,7 +18,6 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 No installation is needed. 
 You can either download the train_colab.ipynb file and open it in colab, or go to colab-> Open notebook -> GitHub and then paste the URL of this repository. 
 Note that we cannot control the exact environment of colab and most of the testing are done on the local machine.
->>>>>>> main
 
 ## Installation 
 Setup uv venv and install required python packages. 
@@ -50,14 +38,13 @@ wandb login
 ```
 
 ## Training and inference
-<<<<<<< HEAD
-Go to train.ipynb if you are running on your local machine. 
-
-Go to train_colab.ipynb if you are running on colab.
-=======
 Go to `train.ipynb` if you are running on your local machine. \
 Go to `train_colab.ipynb` if you are running on colab.
 
 ## Plot results
 Go to `plot.ipynb`
->>>>>>> main
+
+
+[1] Clemens Schwarke, Mayank Mittal, Nikita Rudin, David Hoeller, and Marco
+Hutter. Rsl-rl: A learning library for robotics research. arXiv preprint
+arXiv:2509.10771, 2025
