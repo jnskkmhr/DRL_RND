@@ -4,8 +4,7 @@ import torch.nn as nn
 from rnd_rl.storage.trajectory_data import TrajData
 from rnd_rl.modules.actor_critic import ActorCritic
 from rnd_rl.modules.rnd import RandomNetworkDistillation
-from cvxpylayers.torch import CvxpyLayer
-import cvxpy as cp
+from qpth.qp import QPFunction
 
 @dataclass
 class PPOConfig:
@@ -23,7 +22,7 @@ class PPOConfig:
     gae_lambda:float=0.95
     obs_normalization: bool = False # for now RND and ActorCritic both normalize obs or not
     reward_normalization: bool = False
-    safety_layer_enabled: bool = True
+    safety_layer_enabled: bool = False
 class PPOAgent(nn.Module):
     def __init__(
         self,
@@ -100,10 +99,65 @@ class PPOAgent(nn.Module):
 
             # gradient descent update
             x = (x - eta * grad).detach().requires_grad_(True)
-
         return x
 
-    
+    def compute_cbf_constraints(self, states, h_functions, f_functions, g_functions, alpha=0.1):
+        """
+        states: (N, obs_dim) torch tensor
+        h_functions: list of functions h_i(s)
+        f_functions: function f(s)
+        g_functions: function g(s)
+        Returns:
+            A: (N, m) torch tensor
+            b: (N,) torch tensor
+        """
+        
+        sta = states.clone().requires_grad_(True)
+
+        f = f_functions(sta)
+        g = g_functions(sta)
+
+        A = []
+        b = []
+        for i, h_fn in enumerate(h_functions):
+            h = h_fn(sta)
+            dh_ds = torch.autograd.grad(
+                h, sta, grad_outputs=torch.ones_like(h), create_graph=True
+            )[0]
+
+            h_f_dot = dh_ds @ f
+            h_g_dot = dh_ds @ g
+
+            A_i = h_g_dot
+            b_i = -h_f_dot - alpha * h
+
+            A.append(A_i)
+            b.append(b_i)
+
+        A = torch.stack(A, dim=0)
+        b = torch.stack(b, dim=0)
+        return A, b
+
+    def cbf_qp_layer(self, a_raw, A, b, eps=1e-4):
+        # a_raw: (m,) torch tensor
+        # A: (k, m) torch tensor
+        # b: (k,) torch tensor
+
+        m = a_raw.shape[0]
+        k = A.shape[0]
+
+        Q = torch.eye(m, device=self.device)
+        p = -a_raw
+
+        G = -A
+        h = -b
+
+        A_eq = torch.zeros((0, m), device=self.device)
+        b_eq = torch.zeros((0), device=self.device)
+
+        a_safe = QPFunction(eps=eps)(Q, p, G, h, A_eq, b_eq)
+
+        return a_safe
         
     def get_policy_loss(self, traj_data:TrajData)->torch.Tensor:
         predicted_values = self.policy.evaluate(traj_data.states).squeeze(-1)
@@ -134,10 +188,10 @@ class PPOAgent(nn.Module):
         if self.safety_layer_enabled:
             # Define constraint functions
             def c1(s, a):
-                return s - 1.0  # a <= 1.0
+                return s - 1.0  # s <= 1.0
 
             def c2(s, a):
-                return -s - 1.0  # a >= -1.0
+                return -s - 1.0  # s >= -1.0
 
             c_funcs = [c1, c2]
             # Project action using DPP
