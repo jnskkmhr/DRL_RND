@@ -77,4 +77,13 @@ Go to `plot.ipynb`
   journal={arXiv preprint arXiv:1810.12894},
   year={2018}
 }
+
+% RL + CBF
+@article{emam2022safe,
+  title={Safe reinforcement learning using robust control barrier functions},
+  author={Emam, Yousef and Notomista, Gennaro and Glotfelter, Paul and Kira, Zsolt and Egerstedt, Magnus},
+  journal={IEEE Robotics and Automation Letters},
+  year={2022},
+  publisher={IEEE}
+}
 ```

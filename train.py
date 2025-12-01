@@ -12,6 +12,7 @@ from rnd_rl.runner.policy_runner import PPOConfig, PolicyRunner
 from rnd_rl.utils.util import set_seed
 
 # torch default device
+# NOTE: qpth does not support mps backend, so disable it. 
 # if  torch.backends.mps.is_available():
 #     device = torch.device("mps")
 if torch.cuda.is_available():

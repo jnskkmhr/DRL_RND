@@ -116,7 +116,12 @@ class PPOAgent(nn.Module):
         # null equality constraints
         e = torch.autograd.Variable(torch.Tensor())
         e = torch.autograd.Variable(torch.Tensor())
+        
+        # Option1: 
+        # a_filtered = self.qp_solver(P, q, G, h, e, e)
 
-        a_filtered = self.qp_solver(P, q, G, h, e, e)
+        # Option2: residual policy optimization using CBF-OCP
+        a_residual = self.qp_solver(P, q, G, h, e, e)
+        a_filtered = a_policy + a_residual
 
         return a_filtered

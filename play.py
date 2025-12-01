@@ -1,5 +1,6 @@
 # standard lib
 import os
+import math
 from glob import glob
 import gymnasium as gym
 from gym.wrappers import RecordVideo
@@ -14,6 +15,7 @@ from rnd_rl.utils.sim_util import visualize
 from rnd_rl.utils.util import set_seed
 
 # torch default device
+# NOTE: qpth does not support mps backend, so disable it. 
 # if  torch.backends.mps.is_available():
 #     device = torch.device("mps")
 if torch.cuda.is_available():
