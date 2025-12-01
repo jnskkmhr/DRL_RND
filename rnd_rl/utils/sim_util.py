@@ -6,9 +6,8 @@ import torch
 
 # @title Visualization code. Used later.
 
-def visualize(agent, device=torch.device("cpu")):
+def visualize(agent, device=torch.device("cpu"), video_dir:str="./videos"):
 
-    video_dir = "./videos"  # Directory to save videos
     os.makedirs(video_dir, exist_ok=True)
 
     # Create environment with proper render_mode

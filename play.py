@@ -53,7 +53,8 @@ def play(
         policy_cfg=policy_cfg, 
         num_mini_epochs=10,
         device=device, 
-        experiment_name=experiment_name
+        experiment_name=experiment_name, 
+        enable_logging=False
     )
     
     # grab latest model 
@@ -67,7 +68,7 @@ def play(
         load_optimizer=False, 
         )
     
-    visualize(policy_runner.alg)
+    visualize(policy_runner.alg, video_dir=f"./videos/{experiment_name}", device=device)
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

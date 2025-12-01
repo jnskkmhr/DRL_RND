@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import asdict
+import matplotlib
 from torch.utils.tensorboard import SummaryWriter
 
 try:
@@ -66,6 +67,23 @@ class WandbSummaryWriter(SummaryWriter):
             new_style=new_style,
         )
         wandb.log({tag: scalar_value}, step=global_step)
+        
+    def add_figure(
+        self,
+        tag: str,
+        fig: matplotlib.figure.Figure,
+        global_step: int | None = None,
+        walltime: float | None = None,
+        new_style: bool = False,
+    ) -> None:
+        super().add_figure(
+            tag,
+            fig,
+            global_step=global_step,
+            walltime=walltime,
+            # new_style=new_style,
+        )
+        wandb.log({tag: wandb.Image(fig)}, step=global_step)
 
     def stop(self) -> None:
         wandb.finish()

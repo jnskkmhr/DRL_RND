@@ -1,4 +1,5 @@
 import os
+import matplotlib.pyplot as plt
 import gymnasium as gym
 import torch 
 import wandb
@@ -20,6 +21,7 @@ class PolicyRunner:
         device: torch.device = torch.device("cpu"),
         experiment_name: str = "PPO",
         save_interval: int = 10,
+        enable_logging: bool = True,
         ):
 
         self.n_envs = n_envs # parallel envs 
@@ -41,7 +43,8 @@ class PolicyRunner:
         )
 
         self.log_dir = f'runs/{self.alg.name}'
-        self.writer = WandbSummaryWriter(log_dir=self.log_dir, flush_secs=10, cfg={"wandb_project": "rnd_rl"})
+        if enable_logging:
+            self.writer = WandbSummaryWriter(log_dir=self.log_dir, flush_secs=10, cfg={"wandb_project": "rnd_rl"})
 
 
         self.current_learning_epoch = 0
@@ -77,6 +80,22 @@ class PolicyRunner:
         
         self.writer.add_scalar("Reward", self.traj_data.rewards.mean().item(), it)
         self.writer.add_scalar("Extrinsic Reward", self.traj_data.extrinsic_rewards.mean().item(), it)
+        
+        # plot cart position 
+        fig, ax = plt.subplots(dpi=150)
+        ax.plot(self.traj_data.states[:, 0, 0].cpu().numpy())
+        ax.set_xlabel("Time Step")
+        ax.set_ylabel("Cart Position [m]")
+        self.writer.add_figure("State/Cart_Position", fig, it)
+        plt.close(fig)
+        
+        # plot cart velocity
+        fig, ax = plt.subplots(dpi=150)
+        ax.plot(self.traj_data.states[:, 0, 2].cpu().numpy())
+        ax.set_xlabel("Time Step")
+        ax.set_ylabel("Cart Velocity [m/s]")
+        self.writer.add_figure("State/Cart_Velocity", fig, it)
+        plt.close(fig)
 
 
     def update(self, it:int):

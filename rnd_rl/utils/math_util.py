@@ -23,7 +23,7 @@ def get_cartpole_cbf_ocp_constraint(state, u_des)->tuple[torch.Tensor, torch.Ten
     l = 1.0 # pole length
     g = 9.81 # gravity
     
-    x_bound = 1.0
+    x_bound = 0.7
     alpha_1 = 5
     alpha_2 = 100
     
