@@ -11,10 +11,12 @@ class RandomNetworkDistillation(nn.Module):
         device: torch.device = torch.device("cpu"),
         obs_normalization: bool = False,
         reward_normalization: bool = False,
+        reward_scale: float = 1.0
     ):
         super(RandomNetworkDistillation, self).__init__()
         
         self.device = device
+        self.reward_scale = reward_scale
         
         # Build the target network (fixed)
         target_layers = []
@@ -63,7 +65,7 @@ class RandomNetworkDistillation(nn.Module):
         # Compute the intrinsic reward as the distance between the embeddings
         intrinsic_reward = torch.linalg.norm(target_embedding - predictor_embedding, dim=1)
         # # Normalize intrinsic reward, already in batches?
-        intrinsic_reward = self.reward_normalizer(intrinsic_reward)
+        intrinsic_reward = self.reward_normalizer(intrinsic_reward) * self.reward_scale
 
         return intrinsic_reward
     

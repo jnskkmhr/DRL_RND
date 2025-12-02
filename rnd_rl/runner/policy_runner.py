@@ -17,13 +17,16 @@ class PolicyRunner:
         num_steps_per_env: int = 256,
         device: torch.device = torch.device("cpu"),
         experiment_name: str = "PPO",
+        dict_obs_space = False # for some gymnasium_robotics envs
         ):
 
         self.n_envs = n_envs # parallel envs 
         self.n_steps = num_steps_per_env # horizon length
-        self.n_obs = envs.observation_space.shape[1]
+        self.n_obs = envs.observation_space.shape[1] if not dict_obs_space \
+            else envs.observation_space['observation'].shape[1]
         self.n_actions = envs.action_space.shape[1]
         self.num_mini_epochs = num_mini_epochs
+        self.dict_obs_space = dict_obs_space
 
         # self.envs = gym.vector.SyncVectorEnv([lambda: gym.make("CartPole-v1") for _ in range(self.n_envs)])
         self.envs = envs
@@ -44,6 +47,7 @@ class PolicyRunner:
     def rollout(self, i):
 
         obs, _ = self.envs.reset()
+        if self.dict_obs_space: obs = obs["observation"]
         obs = torch.Tensor(obs)
 
         for t in range(self.n_steps):
@@ -52,6 +56,8 @@ class PolicyRunner:
                 actions, probs = self.alg.get_action(obs.to(self.alg.device))
             log_probs = probs.log_prob(actions).sum(dim=-1)
             next_obs, rewards, done, truncated, infos = self.envs.step(actions.to('cpu').numpy())
+
+            if self.dict_obs_space: next_obs = next_obs["observation"]
             done = done | truncated  # episode doesnt truncate till t = 500, so never
             self.traj_data.store(t, obs, actions, rewards, log_probs, done)
             obs = torch.Tensor(next_obs)
@@ -72,8 +78,16 @@ class PolicyRunner:
         # self.writer.add_scalar("Reward", self.traj_data.rewards.mean(), i)
         # self.writer.add_scalar("Extrinsic Reward", self.traj_data.extrinsic_rewards.mean(), i)
         # self.writer.flush()
-        
-        wandb.log({"Reward": self.traj_data.rewards.mean(), "Extrinsic Reward": self.traj_data.extrinsic_rewards.mean()}, step=i)
+
+        with torch.no_grad():
+            # original inference metric: # of goals reached per timestep.
+            # More intuitively: # of goals reached every 100 timesteps
+            inference_rew = self.traj_data.rewards.mean()
+            inference_extrinsic_rew = self.traj_data.extrinsic_rewards.mean()
+        # import pdb; pdb.set_trace()
+
+        wandb.log({"Reward":  inference_rew, "Extrinsic Reward": inference_extrinsic_rew},  step=i)
+        # wandb.log({"Reward": self.traj_data.rewards.mean(), "Extrinsic Reward": self.traj_data.extrinsic_rewards.mean()}, step=i)
 
 
     def update(self):

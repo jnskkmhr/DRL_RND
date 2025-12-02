@@ -21,6 +21,7 @@ class PPOConfig:
     gae_lambda:float=0.95
     obs_normalization: bool = False # for now RND and ActorCritic both normalize obs or not
     reward_normalization: bool = False
+    intrinsic_reward_scale: float = 1.0
 
 class PPOAgent(nn.Module):
     def __init__(
@@ -58,7 +59,8 @@ class PPOAgent(nn.Module):
                 hidden_dims=policy_cfg.rnd_hidden_dims,
                 device=device,
                 obs_normalization = policy_cfg.obs_normalization,
-                reward_normalization = policy_cfg.reward_normalization
+                reward_normalization = policy_cfg.reward_normalization,
+                reward_scale = policy_cfg.intrinsic_reward_scale
             ).to(self.device)
             self.rnd_optimizer = torch.optim.Adam(self.rnd.predictor.parameters(), lr=policy_cfg.rnd_lr)
         else:
