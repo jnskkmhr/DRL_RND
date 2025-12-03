@@ -98,8 +98,7 @@ class PolicyRunner:
         self.writer.add_figure("State/Cart_Velocity_0", fig, it)
         plt.close(fig)
         
-        # plot cart constraint violation 
-        fig, ax = plt.subplots(dpi=150)
+        # plot cart constraint violation
         cart_pos = self.traj_data.states[:, :, 0].cpu().numpy()
         cart_pos_limit = 0.7 
         cart_pos_violation = ((np.abs(cart_pos) - cart_pos_limit) > 0).mean() # mean over horizon and env
