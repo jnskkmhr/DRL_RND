@@ -1,6 +1,7 @@
 # standard lib
 import os
 import gymnasium as gym
+from gymnasium.envs.registration import register
 from gym.wrappers import RecordVideo
 from IPython.display import Video, display, clear_output
 from tqdm import tqdm
@@ -24,7 +25,18 @@ print(f"Using device: {device}")
 set_seed(42)
 
 
+"""
+register gym envs
+"""
+
+register(
+    id="CustomInvertedPendulum-v0",
+    entry_point="rnd_rl.env.env:CustomInvertedPendulum",
+    )
+
+
 def train(
+    env_name:str="InvertedPendulum-v5",
     num_envs:int=64,
     max_epochs:int=250,
     experiment_name:str="PPO",
@@ -35,7 +47,7 @@ def train(
     ):
     
     envs = gym.vector.SyncVectorEnv(
-        [lambda: gym.make("InvertedPendulum-v5", reset_noise_scale=0.2) for _ in range(num_envs)]
+        [lambda: gym.make(env_name, reset_noise_scale=0.2) for _ in range(num_envs)]
         )
     
     policy_cfg = PPOConfig(
@@ -63,6 +75,7 @@ def train(
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--env_name", type=str, default="InvertedPendulum-v5", help="Name of the Gym environment")
     parser.add_argument("--num_envs", type=int, default=64, help="Number of parallel environments")
     parser.add_argument("--max_epochs", type=int, default=250, help="Maximum number of training epochs")
     parser.add_argument("--experiment_name", type=str, default="PPO", help="Name of the experiment")
@@ -73,6 +86,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     train(
+        env_name=args.env_name,
         num_envs=args.num_envs,
         max_epochs=args.max_epochs,
         experiment_name=args.experiment_name,

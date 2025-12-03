@@ -1,6 +1,7 @@
 import os
 import matplotlib.pyplot as plt
 import gymnasium as gym
+import numpy as np
 import torch 
 import wandb
 # from torch.utils.tensorboard import SummaryWriter
@@ -86,7 +87,7 @@ class PolicyRunner:
         ax.plot(self.traj_data.states[:, 0, 0].cpu().numpy())
         ax.set_xlabel("Time Step")
         ax.set_ylabel("Cart Position [m]")
-        self.writer.add_figure("State/Cart_Position", fig, it)
+        self.writer.add_figure("State/Cart_Position_0", fig, it)
         plt.close(fig)
         
         # plot cart velocity
@@ -94,8 +95,15 @@ class PolicyRunner:
         ax.plot(self.traj_data.states[:, 0, 2].cpu().numpy())
         ax.set_xlabel("Time Step")
         ax.set_ylabel("Cart Velocity [m/s]")
-        self.writer.add_figure("State/Cart_Velocity", fig, it)
+        self.writer.add_figure("State/Cart_Velocity_0", fig, it)
         plt.close(fig)
+        
+        # plot cart constraint violation 
+        fig, ax = plt.subplots(dpi=150)
+        cart_pos = self.traj_data.states[:, :, 0].cpu().numpy()
+        cart_pos_limit = 0.7 
+        cart_pos_violation = ((np.abs(cart_pos) - cart_pos_limit) > 0).mean() # mean over horizon and env
+        self.writer.add_scalar("State/Cart_Position_Violation", cart_pos_violation, it)
 
 
     def update(self, it:int):
