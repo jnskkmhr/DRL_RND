@@ -5,6 +5,10 @@ from rnd_rl.storage.trajectory_data import TrajData
 from rnd_rl.modules.actor_critic import ActorCritic
 from rnd_rl.modules.rnd import RandomNetworkDistillation
 
+# safety filter specifics
+from rnd_rl.utils.math_util import get_cartpole_cbf_ocp_constraint
+from qpth.qp import QPFunction, QPSolvers
+
 @dataclass
 class PPOConfig:
     actor_hidden_dims: list = field(default_factory=lambda: [128, 128])
@@ -21,8 +25,9 @@ class PPOConfig:
     gae_lambda:float=0.95
     obs_normalization: bool = False # for now RND and ActorCritic both normalize obs or not
     reward_normalization: bool = False
-    intrinsic_reward_scale: float = 1.0
-
+    enable_safety_layer: bool = False
+    intrinsic_reward_scale: float = 1.0 # overly high intrinsic rew. can hurt training
+    
 class PPOAgent(nn.Module):
     def __init__(
         self,
@@ -49,7 +54,8 @@ class PPOAgent(nn.Module):
             device=device,
             obs_normalization = policy_cfg.obs_normalization,
         ).to(self.device)
-
+        
+        self.enable_safety_layer = policy_cfg.enable_safety_layer
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=policy_cfg.lr)
 
         if policy_cfg.use_rnd:
@@ -67,14 +73,21 @@ class PPOAgent(nn.Module):
             self.rnd = None
             self.rnd_optimizer = None
             
+        if policy_cfg.use_rnd:
+            self.name = "PPO_RND"
+        else:
+            self.name = "PPO"
         self.name = experiment_name
+        
+        if self.enable_safety_layer:
+            self.qp_solver = QPFunction(verbose=-1, check_Q_spd=False, eps=1e-3, solver=QPSolvers.PDIPM_BATCHED)
         
     def get_policy_loss(self, traj_data:TrajData)->torch.Tensor:
         predicted_values = self.policy.evaluate(traj_data.states).squeeze(-1)
         returns = traj_data.returns
         loss_fn = nn.MSELoss()
         value_loss = loss_fn(predicted_values, traj_data.returns.detach()).mean()
-        _, probs = self.get_action(traj_data.states)
+        _, probs = self.get_action(traj_data.states, is_policy_update=True)
         log_probs = probs.log_prob(traj_data.actions).sum(dim=-1)
         old_log_probs = traj_data.log_probs.detach()
         ratio = torch.exp(log_probs - old_log_probs)
@@ -91,8 +104,26 @@ class PPOAgent(nn.Module):
         rnd_loss = loss_fn(predicted_embeddings, target_embeddings)
         return rnd_loss
     
-    def get_action(self, obs):
-        # print("obs device ", obs.device,"self device ", self.device)
+    def get_action(self, obs, is_policy_update:bool=False):
         actions = self.policy.act(obs)
         dist = self.policy.distribution
+        if self.enable_safety_layer and not is_policy_update:
+            actions = self.cbf_action_filter(obs, actions)
         return actions, dist
+    
+    
+    def cbf_action_filter(self, state, a_policy)->torch.Tensor:
+        # get hessian, grad, inequality constraints
+        P, q, G, h = get_cartpole_cbf_ocp_constraint(state, a_policy)
+        # null equality constraints
+        e = torch.autograd.Variable(torch.Tensor())
+        e = torch.autograd.Variable(torch.Tensor())
+        
+        # Option1: 
+        # a_filtered = self.qp_solver(P, q, G, h, e, e)
+
+        # Option2: residual policy optimization using CBF-OCP
+        a_residual = self.qp_solver(P, q, G, h, e, e)
+        a_filtered = a_policy + a_residual
+
+        return a_filtered

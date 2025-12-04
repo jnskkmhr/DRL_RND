@@ -11,7 +11,7 @@ class RandomNetworkDistillation(nn.Module):
         device: torch.device = torch.device("cpu"),
         obs_normalization: bool = False,
         reward_normalization: bool = False,
-        reward_scale: float = 1.0
+        reward_scale: float = 1.0 # overly high intrinsic rew. can hurt training
     ):
         super(RandomNetworkDistillation, self).__init__()
         
@@ -58,13 +58,9 @@ class RandomNetworkDistillation(nn.Module):
         # Obtain the embedding of the rnd state from the target and predictor networks
         target_embedding = self.target(obs_normalized).detach()
         predictor_embedding = self.predictor(obs_normalized).detach()
-
-        # # Obtain the embedding of the rnd state from the target and predictor networks
-        # target_embedding = self.target(obs).detach()
-        # predictor_embedding = self.predictor(obs).detach()
         # Compute the intrinsic reward as the distance between the embeddings
         intrinsic_reward = torch.linalg.norm(target_embedding - predictor_embedding, dim=1)
-        # # Normalize intrinsic reward, already in batches?
+        # Normalize intrinsic reward and then rescale
         intrinsic_reward = self.reward_normalizer(intrinsic_reward) * self.reward_scale
 
         return intrinsic_reward
