@@ -1,8 +1,6 @@
 # standard lib
-from typing import Literal
 import os
 import gymnasium as gym
-import gymnasium_robotics
 from gymnasium.envs.registration import register
 from gym.wrappers import RecordVideo
 from IPython.display import Video, display, clear_output
@@ -35,12 +33,10 @@ register(
     id="CustomInvertedPendulum-v0",
     entry_point="rnd_rl.env.env:CustomInvertedPendulum",
     )
-gym.register_envs(gymnasium_robotics)
+
 
 def train(
-    env_name:Literal["InvertedPendulum-v5", 
-                     "CustomInvertedPendulum-v0",
-                     "PointMaze_Medium-v3"]="InvertedPendulum-v5",
+    env_name:str="InvertedPendulum-v5",
     num_envs:int=64,
     max_epochs:int=250,
     experiment_name:str="PPO",
@@ -49,29 +45,10 @@ def train(
     obs_normalization:bool=True,
     enable_safety_layer:bool=True,
     ):
-
-    using_maze_env = env_name == "PointMaze_Medium-v3" # special case.
-
-    if using_maze_env:
-        if enable_safety_layer: raise NotImplementedError
-        # force a longer trajectory where RND significantly outperforms vanilla PPO
-        fixed_goal_maze =  [
-            [1, 1, 1, 1, 1, 1, 1, 1],
-            [1, "g", 0, 1, 1, 0, 0, 1],
-            [1, 0, 0, 1, 0, 0, 0, 1],
-            [1, 1, 0, 0, 0, 1, 1, 1],
-            [1, 0, 0, 1, 0, 0, 0, 1],
-            [1, 0, 1, 0, 0, 1, 0, 1],
-            [1, 0, 0, 0, 1, "r", 0, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1]] 
-        envs = gym.vector.SyncVectorEnv(
-            [lambda: gym.make(env_name, maze_map = fixed_goal_maze, continuing_task = False) 
-            for _ in range(num_envs)]
-            )
-    else:
-        envs = gym.vector.SyncVectorEnv(
-            [lambda: gym.make(env_name, reset_noise_scale=0.2) for _ in range(num_envs)]
-            )
+    
+    envs = gym.vector.SyncVectorEnv(
+        [lambda: gym.make(env_name, reset_noise_scale=0.2) for _ in range(num_envs)]
+        )
     
     policy_cfg = PPOConfig(
         use_rnd=use_rnd, 
@@ -79,8 +56,7 @@ def train(
         init_noise_std=1.0, 
         reward_normalization=reward_normalization,
         obs_normalization=obs_normalization,
-        enable_safety_layer=enable_safety_layer,
-        intrinsic_reward_scale = 0.1 if using_maze_env else 1.0
+        enable_safety_layer=enable_safety_layer
     )
     
     policy_runner = PolicyRunner(
@@ -88,8 +64,7 @@ def train(
         policy_cfg=policy_cfg, 
         num_mini_epochs=10,
         device=device, 
-        experiment_name=experiment_name,
-        dict_obs_space=using_maze_env
+        experiment_name=experiment_name
     )
     
     for epoch in tqdm(range(max_epochs)):
@@ -109,7 +84,6 @@ if __name__ == "__main__":
     parser.add_argument("--enable_safety_layer", action='store_true', help="Whether to enable safety layer")
     
     args = parser.parse_args()
-    using_maze_env = args.env_name == "PointMaze_Medium-v3" # special case.
     
     train(
         env_name=args.env_name,
@@ -118,6 +92,6 @@ if __name__ == "__main__":
         experiment_name=args.experiment_name,
         use_rnd=args.use_rnd,
         reward_normalization=args.normalize_rnd,
-        obs_normalization=args.normalize_rnd if (not using_maze_env) else False,
+        obs_normalization=args.normalize_rnd,
         enable_safety_layer=args.enable_safety_layer
     )

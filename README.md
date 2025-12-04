@@ -42,41 +42,27 @@ wandb login
 Go to `train_colab.ipynb` if you are running on colab. -->
 
 ```bash
+
 # --- baseline PPO ---
-# training
+# trainining
 uv run train.py --experiment_name PPO
 
 # inference
 uv run play.py --experiment_name PPO
 
 # --- w/ RND, normalization ---
-# training
+# trainining
 uv run train.py --experiment_name PPO_RND --use_rnd --normalize_rnd
 
 # inference
 uv run play.py --experiment_name PPO_RND --use_rnd --normalize_rnd
 
 # --- w/ RND, normalization, safety shileding ---
-# training
+# trainining
 uv run train.py --experiment_name PPO_CBF --use_rnd --normalize_rnd --enable_safety_layer
 
 # inference
 uv run play.py --experiment_name PPO_CBF --use_rnd --normalize_rnd --enable_safety_layer
-
-# --- baseline PPO in maze environment ---
-# training
-uv run train.py --env_name InvertedPendulum-v5 --experiment_name maze_PPO
-
-# inference
-uv run play.py --env_name InvertedPendulum-v5 --experiment_name maze_PPO
-
-# --- w/ RND, normalization in maze environment ---
-# training
-uv run train.py --env_name InvertedPendulum-v5 --experiment_name maze_PPO_RND --use_rnd --normalize_rnd
-
-# inference
-uv run play.py --env_name InvertedPendulum-v5 --experiment_name maze_PPO_RND --use_rnd --normalize_rnd
-
 ```
 
 ## Plot results
