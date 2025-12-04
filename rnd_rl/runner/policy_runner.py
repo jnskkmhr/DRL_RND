@@ -23,6 +23,7 @@ class PolicyRunner:
         experiment_name: str = "PPO",
         save_interval: int = 10,
         enable_logging: bool = True,
+        dict_obs_space = False # intended for some gymnasium_robotics envs. But here only maze.
         ):
 
         self.n_envs = n_envs # parallel envs 
@@ -32,6 +33,7 @@ class PolicyRunner:
         self.n_actions = envs.action_space.shape[1]
         self.num_mini_epochs = num_mini_epochs
         self.save_interval = save_interval
+        self.dict_obs_space = dict_obs_space
 
         self.envs = envs
         self.traj_data = TrajData(self.n_steps, self.n_envs, self.n_obs, n_actions=self.n_actions) 
@@ -85,6 +87,7 @@ class PolicyRunner:
         self.writer.add_scalar("Reward", self.traj_data.rewards.mean().item(), it)
         self.writer.add_scalar("Extrinsic Reward", self.traj_data.extrinsic_rewards.mean().item(), it)
         
+        if self.dict_obs_space: return # specific for this project, when this is true we are using the maze env
         # plot cart position 
         fig, ax = plt.subplots(dpi=150)
         ax.plot(self.traj_data.states[:, 0, 0].cpu().numpy())

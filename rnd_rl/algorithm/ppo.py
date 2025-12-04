@@ -26,6 +26,7 @@ class PPOConfig:
     obs_normalization: bool = False # for now RND and ActorCritic both normalize obs or not
     reward_normalization: bool = False
     enable_safety_layer: bool = False
+    intrinsic_reward_scale: float = 1.0 # overly high intrinsic rew. can hurt training
     
 class PPOAgent(nn.Module):
     def __init__(
