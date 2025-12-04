@@ -1,10 +1,14 @@
+import os
+import matplotlib.pyplot as plt
 import gymnasium as gym
+import numpy as np
 import torch 
 import wandb
 # from torch.utils.tensorboard import SummaryWriter
 
 from rnd_rl.storage.trajectory_data import TrajData
 from rnd_rl.algorithm.ppo import PPOAgent, PPOConfig
+from rnd_rl.utils.wandb_util import WandbSummaryWriter
 
 
 class PolicyRunner:
@@ -17,6 +21,8 @@ class PolicyRunner:
         num_steps_per_env: int = 256,
         device: torch.device = torch.device("cpu"),
         experiment_name: str = "PPO",
+        save_interval: int = 10,
+        enable_logging: bool = True,
         ):
 
         self.n_envs = n_envs # parallel envs 
@@ -24,8 +30,8 @@ class PolicyRunner:
         self.n_obs = envs.observation_space.shape[1]
         self.n_actions = envs.action_space.shape[1]
         self.num_mini_epochs = num_mini_epochs
+        self.save_interval = save_interval
 
-        # self.envs = gym.vector.SyncVectorEnv([lambda: gym.make("CartPole-v1") for _ in range(self.n_envs)])
         self.envs = envs
         self.traj_data = TrajData(self.n_steps, self.n_envs, self.n_obs, n_actions=self.n_actions) 
         self.policy_cfg = policy_cfg
@@ -34,28 +40,27 @@ class PolicyRunner:
             obs_dim=self.n_obs,
             action_dim=self.n_actions,
             device=device,
-            safety_layer_enabled=policy_cfg.safety_layer_enabled,
             experiment_name=experiment_name,
         )
 
-        # self.writer = SummaryWriter(log_dir=f'runs/{self.alg.name}')
-        wandb.init(project="rnd_rl", name=self.alg.name)
+        self.log_dir = f'runs/{self.alg.name}'
+        if enable_logging:
+            self.writer = WandbSummaryWriter(log_dir=self.log_dir, flush_secs=10, cfg={"wandb_project": "rnd_rl"})
 
 
-    def rollout(self, i):
+        self.current_learning_epoch = 0
+
+
+    def rollout(self, it:int):
 
         obs, _ = self.envs.reset()
         obs = torch.Tensor(obs)
 
         for t in range(self.n_steps):
             # PPO doesnt use gradients here, but REINFORCE and VPG do.
-            if self.policy_cfg.safety_layer_enabled:
+            with torch.no_grad():
                 actions, probs = self.alg.get_action(obs.to(self.alg.device))
-            else:
-                with torch.no_grad():
-                    actions, probs = self.alg.get_action(obs.to(self.alg.device))
             log_probs = probs.log_prob(actions).sum(dim=-1)
-            actions = actions.detach()
             next_obs, rewards, done, truncated, infos = self.envs.step(actions.to('cpu').numpy())
             done = done | truncated  # episode doesnt truncate till t = 500, so never
             self.traj_data.store(t, obs, actions, rewards, log_probs, done)
@@ -73,16 +78,35 @@ class PolicyRunner:
         last_value = self.alg.policy.evaluate(obs.to(self.alg.device)).detach()
         values = self.alg.policy.evaluate(self.traj_data.states).detach().squeeze()
         self.traj_data.calc_returns(values, last_value=last_value)
-
-        # self.writer.add_scalar("Reward", self.traj_data.rewards.mean(), i)
-        # self.writer.add_scalar("Extrinsic Reward", self.traj_data.extrinsic_rewards.mean(), i)
-        # self.writer.flush()
         
-        wandb.log({"Reward": self.traj_data.rewards.mean(), "Extrinsic Reward": self.traj_data.extrinsic_rewards.mean()}, step=i)
+        self.writer.add_scalar("Reward", self.traj_data.rewards.mean().item(), it)
+        self.writer.add_scalar("Extrinsic Reward", self.traj_data.extrinsic_rewards.mean().item(), it)
+        
+        # plot cart position 
+        fig, ax = plt.subplots(dpi=150)
+        ax.plot(self.traj_data.states[:, 0, 0].cpu().numpy())
+        ax.set_xlabel("Time Step")
+        ax.set_ylabel("Cart Position [m]")
+        self.writer.add_figure("State/Cart_Position_0", fig, it)
+        plt.close(fig)
+        
+        # plot cart velocity
+        fig, ax = plt.subplots(dpi=150)
+        ax.plot(self.traj_data.states[:, 0, 2].cpu().numpy())
+        ax.set_xlabel("Time Step")
+        ax.set_ylabel("Cart Velocity [m/s]")
+        self.writer.add_figure("State/Cart_Velocity_0", fig, it)
+        plt.close(fig)
+        
+        # plot cart constraint violation
+        cart_pos = self.traj_data.states[:, :, 0].cpu().numpy()
+        cart_pos_limit = 0.7 
+        cart_pos_violation = ((np.abs(cart_pos) - cart_pos_limit) > 0).mean() # mean over horizon and env
+        self.writer.add_scalar("State/Cart_Position_Violation", cart_pos_violation, it)
 
 
-    def update(self):
-
+    def update(self, it:int):
+        self.current_learning_epoch = it
         # A primary benefit of PPO is that it can train for
         # many epochs on 1 rollout without going unstable
         for _ in range(self.num_mini_epochs):
@@ -104,3 +128,42 @@ class PolicyRunner:
                 self.alg.rnd_optimizer.step()
 
         self.traj_data.detach()
+        
+        # Save model
+        if it % self.save_interval == 0:
+            self.save(os.path.join(self.log_dir, "model", f"model_{it}.pt"))  # type: ignore
+
+    def save(self, path: str) -> None:
+        # Save model
+        saved_dict = {
+            "model_state_dict": self.alg.policy.state_dict(),
+            "optimizer_state_dict": self.alg.optimizer.state_dict(),
+            "iter": self.current_learning_epoch,
+        }
+        # Save RND model if used
+        if self.policy_cfg.use_rnd:
+            saved_dict["rnd_state_dict"] = self.alg.rnd.state_dict()
+            if self.alg.rnd_optimizer:
+                saved_dict["rnd_optimizer_state_dict"] = self.alg.rnd_optimizer.state_dict()
+        torch.save(saved_dict, path)
+
+        # Upload model to external logging services
+        self.writer.save_model(path, self.current_learning_epoch)
+        
+    def load(self, path: str, load_optimizer: bool = True, map_location: str | None = None) -> None:
+        loaded_dict = torch.load(path, weights_only=False, map_location=map_location)
+        # Load model
+        resumed_training = self.alg.policy.load_state_dict(loaded_dict["model_state_dict"])
+        # Load RND model if used
+        if self.policy_cfg.use_rnd:
+            self.alg.rnd.load_state_dict(loaded_dict["rnd_state_dict"])
+        # Load optimizer if used
+        if load_optimizer and resumed_training:
+            # Algorithm optimizer
+            self.alg.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])
+            # RND optimizer if used
+            if self.policy_cfg.use_rnd:
+                self.alg.rnd_optimizer.load_state_dict(loaded_dict["rnd_optimizer_state_dict"])
+        # Load current learning epoch
+        if resumed_training:
+            self.current_learning_epoch = loaded_dict["iter"]

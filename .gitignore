@@ -1,8 +1,10 @@
 # no venv
 drl_env
+.venv
 rnd_rl.egg-info
 runs
 videos
 *.pyc
 *.pdf
 wandb
+uv.lock
