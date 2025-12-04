@@ -66,17 +66,17 @@ uv run play.py --experiment_name PPO_CBF --use_rnd --normalize_rnd --enable_safe
 
 # --- baseline PPO in maze environment ---
 # training
-uv run train.py --env_name InvertedPendulum-v5 --experiment_name maze_PPO
+uv run train.py --env_name PointMaze_Medium-v3 --experiment_name maze_PPO
 
 # inference
-uv run play.py --env_name InvertedPendulum-v5 --experiment_name maze_PPO
+uv run play.py --env_name PointMaze_Medium-v3 --experiment_name maze_PPO
 
 # --- w/ RND, normalization in maze environment ---
 # training
-uv run train.py --env_name InvertedPendulum-v5 --experiment_name maze_PPO_RND --use_rnd --normalize_rnd
+uv run train.py --env_name PointMaze_Medium-v3 --experiment_name maze_PPO_RND --use_rnd --normalize_rnd
 
 # inference
-uv run play.py --env_name InvertedPendulum-v5 --experiment_name maze_PPO_RND --use_rnd --normalize_rnd
+uv run play.py --env_name PointMaze_Medium-v3 --experiment_name maze_PPO_RND --use_rnd --normalize_rnd
 
 ```
 
