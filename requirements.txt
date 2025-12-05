@@ -1,5 +1,6 @@
 gym 
 gymnasium[mujoco]
+gymnasium-robotics[mujoco-py]
 moviepy 
 pygame
 notebook

@@ -23,14 +23,17 @@ class PolicyRunner:
         experiment_name: str = "PPO",
         save_interval: int = 10,
         enable_logging: bool = True,
+        dict_obs_space = False # intended for some gymnasium_robotics envs. But here only maze.
         ):
 
         self.n_envs = n_envs # parallel envs 
         self.n_steps = num_steps_per_env # horizon length
-        self.n_obs = envs.observation_space.shape[1]
+        self.n_obs = envs.observation_space.shape[1] if not dict_obs_space \
+            else envs.observation_space['observation'].shape[1]
         self.n_actions = envs.action_space.shape[1]
         self.num_mini_epochs = num_mini_epochs
         self.save_interval = save_interval
+        self.dict_obs_space = dict_obs_space
 
         self.envs = envs
         self.traj_data = TrajData(self.n_steps, self.n_envs, self.n_obs, n_actions=self.n_actions) 
@@ -54,6 +57,7 @@ class PolicyRunner:
     def rollout(self, it:int):
 
         obs, _ = self.envs.reset()
+        if self.dict_obs_space: obs = obs["observation"]
         obs = torch.Tensor(obs)
 
         for t in range(self.n_steps):
@@ -62,6 +66,7 @@ class PolicyRunner:
                 actions, probs = self.alg.get_action(obs.to(self.alg.device))
             log_probs = probs.log_prob(actions).sum(dim=-1)
             next_obs, rewards, done, truncated, infos = self.envs.step(actions.to('cpu').numpy())
+            if self.dict_obs_space: next_obs = next_obs["observation"]
             done = done | truncated  # episode doesnt truncate till t = 500, so never
             self.traj_data.store(t, obs, actions, rewards, log_probs, done)
             obs = torch.Tensor(next_obs)
@@ -82,6 +87,7 @@ class PolicyRunner:
         self.writer.add_scalar("Reward", self.traj_data.rewards.mean().item(), it)
         self.writer.add_scalar("Extrinsic Reward", self.traj_data.extrinsic_rewards.mean().item(), it)
         
+        if self.dict_obs_space: return # specific for this project, when this is true we are using the maze env
         # plot cart position 
         fig, ax = plt.subplots(dpi=150)
         ax.plot(self.traj_data.states[:, 0, 0].cpu().numpy())
