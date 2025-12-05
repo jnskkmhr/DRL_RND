@@ -80,15 +80,14 @@ def plot(wandb_username: str, # WANDB_USERNAME not in env
 
         label = run.name if labels is None else labels[i]
         if safety_experiment:
-            # TODO: not able to test as there are some problems with the run and it can't stop.
-            axes[0].plot(df['_step'], df['State/Cart_Position_Violation'], label=label)
+            # Units: percentage of violations. Original data is ratio of violations.
+            axes[0].plot(df['_step'], df['State/Cart_Position_Violation']*100, label=label)
             axes[1].plot(df['_step'], df['Extrinsic Reward'], label=label)
         else:
             axes[0].plot(df['_step'], df['Reward'], label=label)
             axes[1].plot(df['_step'], df['Extrinsic Reward'], label=label)
 
     if title is not None:
-        # axes[0].set_title("RND on InvertedPendulum-v5", fontsize=fontsize)
         # fig.suptitle(t=title, fontsize=fontsize)
         axes[0].set_title(label = title, fontsize=fontsize)
 

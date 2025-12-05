@@ -8,16 +8,11 @@ Tested environment
 * MacOS (Apple silicon)
 * Ubuntu 22.04/24.04
 
-### Run on your local machine (**recommended**)
+### Run on your local machine
 Install uv (a package manager) if you do not have it.
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
-
-###  Running on colab
-No installation is needed. 
-You can either download the train_colab.ipynb file and open it in colab, or go to colab-> Open notebook -> GitHub and then paste the URL of this repository. 
-Note that we cannot control the exact environment of colab and most of the testing are done on the local machine.
 
 ## Installation 
 Setup uv venv and install required python packages. 
@@ -40,9 +35,9 @@ wandb login
 ## Training and inference
 <!-- Go to `train.ipynb` if you are running on your local machine. \
 Go to `train_colab.ipynb` if you are running on colab. -->
+### Running in terminal (**recommended**)
 
 ```bash
-
 # --- baseline PPO ---
 # training
 uv run train.py --experiment_name PPO
@@ -79,6 +74,8 @@ uv run train.py --env_name PointMaze_Medium-v3 --experiment_name maze_PPO_RND --
 uv run play.py --env_name PointMaze_Medium-v3 --experiment_name maze_PPO_RND --use_rnd --normalize_rnd
 
 ```
+### Running in notebook
+Go to `demo.ipynb`. The notebook is an interactive walkthrough of training and visualization. **Certain devices may have the risk of jupyter kernel crashing when running training cells**. The notebook is equivalent to running the above commands and `plot.ipynb`.
 
 ## Plot results
 Go to `plot.ipynb`
